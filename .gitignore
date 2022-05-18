@@ -6,3 +6,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# General things to ignore
+build/
+dist/
+*.egg-info/
+*.egg
+*.py[cod]
+__pycache__/
+*.so
+*~
