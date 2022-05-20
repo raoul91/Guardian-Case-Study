@@ -1,5 +1,6 @@
 import os
 from re import A
+from turtle import st
 from numpy import zeros
 import pandas as pd
 import requests
@@ -8,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import matplotlib.pyplot as plt
 import statistics
+import numpy as np
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -81,50 +83,45 @@ class GuardianSearch:
         return df
 
 
-def main():
-    today = datetime.now().date()
-    today_str = today.strftime("%Y-%m-%d")
-    guardian_search = GuardianSearch(["trudeau"], "2018-01-01", today_str)
+def generate_articles_csv(df):
+    s = df.sum(axis=1)
+    total_df = pd.DataFrame({"Total No. of Articles": s.values}, index=s.index)
+    total_df.index.name = "date"
+    path = os.path.join(DATA_DIR, "number_of_articles.csv")
+    total_df.to_csv(path, sep=";")
 
-    df = guardian_search.get_article_section_df()
-    output_path = os.path.join(DATA_DIR, "output.csv")
 
-    df["total"] = df.sum(axis=1)
-    df.to_csv(output_path, sep=";")
+def total_number(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.sum()
 
-    # calculate mean, variance, standard deviation
-    mean = df["total"].mean()
-    print("Average no. of articles over all days = {0}".format(mean))
 
-    var = df["total"].var()
-    print("Variance of no. of articles = {0}".format(var))
+def mean(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.mean()
 
-    std = df["total"].std()
-    print("Standard deviation of no. of articles = {0}".format(std))
 
-    """
-    # max section and number of articles per section
-    s = df.sum(axis=0)
-    s_dict = s.to_dict()
-    s_dict.pop("total")
+def std(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.std()
 
-    print("Number of articles per section:")
-    for section, number in s_dict.items():
-        print("{section}: {number}".format(
-            section=section, number=number))
-    max_section = max(s_dict, key=s_dict.get)
-    print("Section with the most articles = {0}".format(max_section))
 
-    # articles per section
-    art_per_section = pd.DataFrame(
-        {'No. of articles per section': s.values}, index=s.index)
-    art_per_section.index.name = "Section"
-    articles_per_section_path = os.path.join(
-        DATA_DIR, "articles_per_section.csv")
+def generate_unusual_events_csv(df, mean, std):
+    df_new = df.copy()
+    df_new["total"] = df_new.sum(axis=1)
+    df_new = df_new[abs(df_new["total"]-mean) >= 3*std]
+    # TODO: sort by number of events
+    path = os.path.join(DATA_DIR, "unusual.csv")
+    df_new.to_csv(path, sep=";")
 
-    # plot article
 
-    plt.plot(df.index, df['total'], lw=1, color='red')
+def generate_evolution_series(df):
+    df_new = df.copy()
+    df_new["total"] = df_new.sum(axis=1)
+    plt.plot(df_new.index, df_new['total'], lw=1, color='red')
     plt.xlabel("date")
     plt.ylabel("number of articles")
     plt.xticks(rotation=45)
@@ -132,25 +129,73 @@ def main():
     fig.set_size_inches(10, 10)
     plot_output_path = os.path.join(DATA_DIR, "number_of_articles.png")
     fig.savefig(plot_output_path, dpi=100)
-    plt.show()
+    plt.clf()
 
 
-    # all data points will be within +/- 3 std
-    special_dates_df = df[[abs(df["total"]-mean) > 3*std]]
-    print("special events")
-    print(special_dates_df)
+def articles_by_section_dict(df):
+    df_new = df.copy()
+    df_new = df_new.sum(axis=0)
+    dict = df_new.to_dict()
+    return dict
 
-    # autocorrelation plot to detect seasonality
-    print(df.sum(axis=1))
-    x = pd.plotting.autocorrelation_plot(df.sum(axis=1))
-    plt.show()
-    x.plot()
+
+def section_pie_chart(df):
+    # TODO: need to make this differently
+    df_new = df.copy()
+    df_new = df_new.sum(axis=0)
+
+    """
+    title = "Articles Trudeau per Section"
+    df_newer = pd.DataFrame({"section": df_new.index, title: df_new.values})
+    pie = df_newer.groupby(['section']).sum().plot(kind='pie', y=title)
+    fig = pie.get_figure()
+    path = os.path.join(DATA_DIR, "sections_pie_chart.pdf")
+    fig.savefig(path)    
     """
 
-    # special dates (dates for which ...)
-    special_dates = df[abs(df["total"] - mean) > 3*std]
-    special_dates_path = os.path.join(DATA_DIR, "special_dates.csv")
-    special_dates.to_csv(special_dates_path, sep=";")
+    df = pd.DataFrame({'mass': [0.330, 4.87, 5.97], 'radius': [
+                      2439.7, 6051.8, 6378.1]}, index=['Mercury', 'Venus', 'Earth'])
+    plot = df.plot.pie(y='mass', figsize=(5, 5))
+    path = os.path.join(DATA_DIR, "pie_chart.pdf")
+    plt.savefig(path)
+    plt.clf()
+
+
+def hist(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    plt.hist(s.values)
+    path = os.path.join(DATA_DIR, "histogram.pdf")
+    plt.savefig(path)
+    plt.clf()
+
+
+def autocorrelation(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    x = pd.plotting.autocorrelation_plot(s)
+    path = os.path.join(DATA_DIR, "autocorrelation.pdf")
+    plt.savefig(path)
+    plt.clf()
+
+
+def main():
+    today = datetime.now().date()
+    today_str = today.strftime("%Y-%m-%d")
+
+    # generate dataframe with number of articles per section and date
+    guardian_search = GuardianSearch(["trudeau"], "2022-01-20", today_str)
+    df = guardian_search.get_article_section_df()
+
+    print("Sum = {0}".format(total_number(df)))
+    print(mean(df))
+    print(std(df))
+
+    # hist(df)
+    section_pie_chart(df)
+    generate_evolution_series(df)
+    hist(df)
+    autocorrelation(df)
 
 
 if __name__ == "__main__":
