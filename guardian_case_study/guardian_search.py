@@ -1,13 +1,9 @@
 import os
-from re import A
-from numpy import zeros
 import pandas as pd
 import requests
-from urllib import response
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
-import statistics
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -81,50 +77,54 @@ class GuardianSearch:
         return df
 
 
-def main():
-    today = datetime.now().date()
-    today_str = today.strftime("%Y-%m-%d")
-    guardian_search = GuardianSearch(["trudeau"], "2018-01-01", today_str)
+def generate_articles_csv(df):
+    s = df.sum(axis=1)
+    total_df = pd.DataFrame({"Total No. of Articles": s.values}, index=s.index)
+    total_df.index.name = "date"
+    path = os.path.join(DATA_DIR, "number_of_articles.csv")
+    total_df.to_csv(path, sep=";")
 
-    df = guardian_search.get_article_section_df()
-    output_path = os.path.join(DATA_DIR, "output.csv")
 
-    df["total"] = df.sum(axis=1)
-    df.to_csv(output_path, sep=";")
+def total_number(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.sum()
 
-    # calculate mean, variance, standard deviation
-    mean = df["total"].mean()
-    print("Average no. of articles over all days = {0}".format(mean))
 
-    var = df["total"].var()
-    print("Variance of no. of articles = {0}".format(var))
+def mean(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.mean()
 
-    std = df["total"].std()
-    print("Standard deviation of no. of articles = {0}".format(std))
 
-    """
-    # max section and number of articles per section
-    s = df.sum(axis=0)
-    s_dict = s.to_dict()
-    s_dict.pop("total")
+def std(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    return s.std()
 
-    print("Number of articles per section:")
-    for section, number in s_dict.items():
-        print("{section}: {number}".format(
-            section=section, number=number))
-    max_section = max(s_dict, key=s_dict.get)
-    print("Section with the most articles = {0}".format(max_section))
 
-    # articles per section
-    art_per_section = pd.DataFrame(
-        {'No. of articles per section': s.values}, index=s.index)
-    art_per_section.index.name = "Section"
-    articles_per_section_path = os.path.join(
-        DATA_DIR, "articles_per_section.csv")
+def generate_csv(df):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    total_df = pd.DataFrame({"Total No. Articles": s.values}, index=s.index)
+    path = os.path.join(DATA_DIR, "number_of_articles.csv")
+    total_df.to_csv(path, sep=";")
 
-    # plot article
 
-    plt.plot(df.index, df['total'], lw=1, color='red')
+def generate_unusual_events_csv(df, mean, std):
+    df_new = df.copy()
+    df_new["total"] = df_new.sum(axis=1)
+    df_new = df_new[abs(df_new["total"]-mean) >= 3*std]
+    # TODO: sort by number of events
+    path = os.path.join(DATA_DIR, "unusual.csv")
+    df_new.to_csv(path, sep=";")
+
+
+def generate_evolution_series(df, title):
+    df_new = df.copy()
+    df_new["total"] = df_new.sum(axis=1)
+    plt.plot(df_new.index, df_new['total'], lw=1, color='red')
+    plt.title(title)
     plt.xlabel("date")
     plt.ylabel("number of articles")
     plt.xticks(rotation=45)
@@ -132,25 +132,84 @@ def main():
     fig.set_size_inches(10, 10)
     plot_output_path = os.path.join(DATA_DIR, "number_of_articles.png")
     fig.savefig(plot_output_path, dpi=100)
-    plt.show()
+    plt.clf()
 
 
-    # all data points will be within +/- 3 std
-    special_dates_df = df[[abs(df["total"]-mean) > 3*std]]
-    print("special events")
-    print(special_dates_df)
+def articles_by_section_dict(df):
+    df_new = df.copy()
+    df_new = df_new.sum(axis=0)
+    dict = df_new.to_dict()
+    # return sorted dictionary
+    return {k: v for k, v in sorted(dict.items(), key=lambda item: item[1], reverse=True)}
 
-    # autocorrelation plot to detect seasonality
-    print(df.sum(axis=1))
-    x = pd.plotting.autocorrelation_plot(df.sum(axis=1))
-    plt.show()
-    x.plot()
+
+def section_pie_chart(df, title):
+    df_new = df.copy()
+    s = df_new.sum(axis=0)
+    articles_per_section = pd.DataFrame({'articles': s.values}, index=s.index)
+    articles_per_section.plot.pie(y='articles', textprops={
+                                  'fontsize': 5}, figsize=(15, 15))
+    path = os.path.join(DATA_DIR, "pie_chart.pdf")
+    plt.title(title)
+    plt.savefig(path)
+    plt.clf()
+
+
+def histogram(df, title):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    plt.hist(s.values)
+    path = os.path.join(DATA_DIR, "histogram.pdf")
+    plt.title(title)
+    plt.savefig(path)
+    plt.clf()
+
+
+def autocorrelation(df, title):
+    df_new = df.copy()
+    s = df_new.sum(axis=1)
+    pd.plotting.autocorrelation_plot(s)
+    path = os.path.join(DATA_DIR, "autocorrelation.pdf")
+    plt.title(title)
+    plt.savefig(path)
+    plt.clf()
+
+
+def main():
+    search_term = "Christmas"
+    from_date = "2018-01-01"
+    to_date = datetime.now().date().strftime("%Y-%m-%d")
+    title = "Articles about '{search_term}' from {from_date} to {to_date}".format(
+        search_term=search_term,
+        from_date=from_date,
+        to_date=to_date,
+    )
+
+    # generate dataframe with number of articles per section and date
+
+    guardian_search = GuardianSearch([search_term], from_date, to_date)
+    df = guardian_search.get_article_section_df()
+
+    df.to_csv(os.path.join(DATA_DIR, "full.csv"), sep=";")
+    generate_csv(df)
+
     """
+    print("Sum = {0}".format(total_number(df)))
+    print(mean(df))
+    print(std(df))
 
-    # special dates (dates for which ...)
-    special_dates = df[abs(df["total"] - mean) > 3*std]
-    special_dates_path = os.path.join(DATA_DIR, "special_dates.csv")
-    special_dates.to_csv(special_dates_path, sep=";")
+    # plot histogram
+    histogram(df, search_term)
+
+    print("Articles by Section")
+    for section, number in articles_by_section_dict(df).items():
+        print("{section}: {number}".format(section=section, number=number))
+
+    section_pie_chart(df, title)
+    generate_evolution_series(df, title)
+    histogram(df, title)
+    """
+    autocorrelation(df, title)
 
 
 if __name__ == "__main__":
