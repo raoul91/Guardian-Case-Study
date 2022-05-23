@@ -5,6 +5,7 @@ import requests
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
+from zipfile import ZipFile
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
