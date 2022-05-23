@@ -1,4 +1,5 @@
 import os
+from turtle import st
 import pandas as pd
 import requests
 from datetime import datetime
@@ -11,16 +12,15 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 
 class GuardianSearch:
-    def __init__(self, search_terms, from_date, to_date):
-        self.search_terms = search_terms
+    def __init__(self, search_term, from_date, to_date):
+        self.search_term = search_term
         self.from_date = from_date
         self.to_date = to_date
 
     def get_search_url(self, page=1):
-        search_terms_concatenated = " AND ".join(self.search_terms)
         return "https://content.guardianapis.com/search?page={page}&q={search_terms}&from-date={from_date}&to-date={to_date}&api-key=test".format(
             page=page,
-            search_terms=search_terms_concatenated,
+            search_terms=self.search_term,
             from_date=self.from_date,
             to_date=self.to_date
         )
@@ -111,12 +111,14 @@ def generate_csv(df):
     total_df.to_csv(path, sep=";")
 
 
-def generate_unusual_events_csv(df, mean, std):
+def generate_unusual_events_csv(df):
     df_new = df.copy()
     df_new["total"] = df_new.sum(axis=1)
-    df_new = df_new[abs(df_new["total"]-mean) >= 3*std]
+    m = mean(df)
+    sd = std(df)
+    df_new = df_new[abs(df_new["total"]-m) >= 3*sd]
     # TODO: sort by number of events
-    path = os.path.join(DATA_DIR, "unusual.csv")
+    path = os.path.join(DATA_DIR, "unusual_events.csv")
     df_new.to_csv(path, sep=";")
 
 
@@ -176,39 +178,48 @@ def autocorrelation(df, title):
 
 
 def main():
-    search_term = "Christmas"
-    from_date = "2018-01-01"
+    search_term = "trudeau"
+    from_date = "2022-05-01"
     to_date = datetime.now().date().strftime("%Y-%m-%d")
-    title = "Articles about '{search_term}' from {from_date} to {to_date}".format(
-        search_term=search_term,
+    title = "Articles about '{name}' from {from_date} to {to_date}".format(
+        name="Trudeau",
         from_date=from_date,
         to_date=to_date,
     )
 
     # generate dataframe with number of articles per section and date
+    gs = GuardianSearch(search_term, from_date, to_date)
+    df = gs.get_article_section_df()
 
-    guardian_search = GuardianSearch([search_term], from_date, to_date)
-    df = guardian_search.get_article_section_df()
-
-    df.to_csv(os.path.join(DATA_DIR, "full.csv"), sep=";")
+    # Generate csv with number of articles per year
     generate_csv(df)
 
-    """
-    print("Sum = {0}".format(total_number(df)))
-    print(mean(df))
-    print(std(df))
+    # Total number of articles, average, and standard deviation
+    print("Total number of articles: {0}".format(total_number(df)))
+    print("Averge number of articles: {0}".format(mean(df)))
+    print("Stardard deviation: {0}".format(std(df)))
 
-    # plot histogram
-    histogram(df, search_term)
+    # Plot histogram
+    histogram(df, title)
 
-    print("Articles by Section")
+    # Articles by section
+    print("Articles by Section:")
     for section, number in articles_by_section_dict(df).items():
         print("{section}: {number}".format(section=section, number=number))
 
+    # Pie chart articles per section
     section_pie_chart(df, title)
+
+    # Evolution of article count over time
     generate_evolution_series(df, title)
+
+    # Unusual events
+    generate_unusual_events_csv(df)
+
+    # Histogram for article count
     histogram(df, title)
-    """
+
+    # Autocorrelation diagram to detect seasonality
     autocorrelation(df, title)
 
 
