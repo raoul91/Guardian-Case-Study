@@ -132,8 +132,8 @@ def generate_evolution_series(df, title):
     plt.xticks(rotation=45)
     fig = plt.gcf()
     fig.set_size_inches(10, 10)
-    plot_output_path = os.path.join(DATA_DIR, "number_of_articles.png")
-    fig.savefig(plot_output_path, dpi=100)
+    path = os.path.join(DATA_DIR, "evolution_articles.png")
+    fig.savefig(path, dpi=100)
     plt.clf()
 
 
@@ -179,7 +179,7 @@ def autocorrelation(df, title):
 
 def main():
     search_term = "trudeau"
-    from_date = "2022-05-01"
+    from_date = "2018-01-01"
     to_date = datetime.now().date().strftime("%Y-%m-%d")
     title = "Articles about '{name}' from {from_date} to {to_date}".format(
         name="Trudeau",
