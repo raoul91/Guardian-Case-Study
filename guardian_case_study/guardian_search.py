@@ -120,7 +120,10 @@ def main():
     dfProcessor.generate_unusual_events_csv()
 
     # Zip all the files
-    dfProcessor.zip("guardian_search_{0}.zip".format(to_date))
+    dfProcessor.zip("guardian_search_{search_term}_{timestamp}.zip".format(
+        timestamp=to_date,
+        search_term=search_term,
+    ))
 
 
 if __name__ == "__main__":

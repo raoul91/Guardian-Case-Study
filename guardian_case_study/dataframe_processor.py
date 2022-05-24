@@ -52,7 +52,7 @@ class DataFrameProcessor:
         df_new["total"] = df_new.sum(axis=1)
         m = self.mean()
         sd = self.std()
-        df_new = df_new[abs(df_new["total"]-m) >= 3*sd]
+        df_new = df_new[abs(df_new["total"]-m) >= 4*sd]
         # TODO: sort by number of events
         path = os.path.join(DATA_DIR, "unusual_events.csv")
         df_new.to_csv(path, sep=";")
