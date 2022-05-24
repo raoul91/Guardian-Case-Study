@@ -13,7 +13,7 @@ class DataFrameProcessor:
         self.df = df
         self.files = []
 
-    def generate_articles_csv(self):
+    def generate_csv(self):
         df_new = self.df.copy()
         s = df_new.sum(axis=1)
         total_df = pd.DataFrame(
@@ -58,7 +58,7 @@ class DataFrameProcessor:
         df_new.to_csv(path, sep=";")
         self.files.append(path)
 
-    def generate_evolution_series(self, title):
+    def evolution_plot(self, title):
         df_new = self.df.copy()
         df_new["total"] = df_new.sum(axis=1)
         plt.plot(df_new.index, df_new['total'], lw=1, color='red')
@@ -118,5 +118,7 @@ class DataFrameProcessor:
         zip = ZipFile(zip_path, 'w')
         for file_path in self.files:
             zip.write(file_path, os.path.basename(file_path))
+            # delete file that is not zipped
+            os.remove(file_path)
 
         zip.close()
