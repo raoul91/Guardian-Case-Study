@@ -85,8 +85,10 @@ def main():
         to_date=to_date
     )
 
+    # Get dataframe with articles per date (rows) and section (columns)
     df = gs.get_article_section_df()
 
+    # Initialize processor to create plots, statistics, etc.
     dfProcessor = DataFrameProcessor(df)
 
     # Total number of articles, average, and standard deviation
